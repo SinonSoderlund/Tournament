@@ -32,9 +32,14 @@ namespace Tournament.Data.Repositories
             return await context.Game.ToListAsync();
         }
 
-        public async Task<Game> GetAsync(int id)
+        public async Task<Game> GetAsync(int? id = 0, string? byName = "")
         {
-            return await context.Game.FirstOrDefaultAsync(x => x.Id == id);
+            if (byName != null)
+                return await context.Game.FirstOrDefaultAsync(x => x.Title == byName);
+            else if (id != null)
+                return await context.Game.FirstOrDefaultAsync(x => x.Id == id);
+            else
+                return null;
         }
 
         public void Remove(Game game)

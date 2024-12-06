@@ -5,17 +5,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Tournament.Core.Entities
+namespace Tournament.Core.Dto
 {
-    public class Game
+    public class GameDto
     {
-        public int Id { get; set; }
-
         [Required]
         [MaxLength(20, ErrorMessage = "Title lenght may not exceed 20 chaarcters")]
         public string Title { get; set; } = string.Empty;
-        public DateTime Time { get; set; }
+        public DateTime StartTime { get; set; }
         public int TournamentId { get; set; }
-        public TournamentDetails Tournament {  get; set; }
     }
 }

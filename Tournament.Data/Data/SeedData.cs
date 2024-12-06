@@ -50,7 +50,7 @@ namespace Tournament.Data.Data
 
                     //create a second date from tournament.starttime, between which games take place
                     DateTime next = t.StartDate;
-                    next.AddDays(7);
+                    next.AddMonths(3);
                     Game g = new Game()
                     {
                         Title = faker.Commerce.ProductMaterial(),

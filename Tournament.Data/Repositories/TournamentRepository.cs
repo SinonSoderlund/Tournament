@@ -33,9 +33,10 @@ namespace Tournament.Data.Repositories
             return await context.TournamentDetails.ToListAsync();
         }
 
-        public async Task<TournamentDetails> GetAsync(int id)
+        public async Task<TournamentDetails> GetAsync(int id, bool includeGames = false)
         {
-            return await context.TournamentDetails.FirstOrDefaultAsync(t => t.Id == id);
+            return includeGames ? await context.TournamentDetails.Include(g => g.Games).FirstOrDefaultAsync(g => g.Id == id)
+                   : await context.TournamentDetails.FirstOrDefaultAsync(g => g.Id == id);
         }
 
         public void Remove(TournamentDetails tournamentDetails)
