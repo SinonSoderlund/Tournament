@@ -19,27 +19,25 @@ namespace Tournament.API.Controllers
     [ApiController]
     public class TournamentDetailsController : ControllerBase
     {
-        private readonly IUnitOfWork iUoW;
-        private readonly IMapper mapper;
+        private readonly IUnitOfWork Services;
 
-        public TournamentDetailsController(IUnitOfWork iUoW, IMapper mapper)
+        public TournamentDetailsController(IUnitOfWork iServices)
         {
-            this.iUoW = iUoW;
-            this.mapper = mapper;
+            this.Services = iUoW;
         }
 
         // GET: api/TournamentDetails
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TournamentIdDto>>> GetTournamentDetails()
         {
-            return Ok(mapper.Map<IEnumerable<TournamentIdDto>>(await iUoW.TournamentRepository.GetAllAsync()));
+            return Ok(mapper.Map<IEnumerable<TournamentIdDto>>(await Services.TournamentRepository.GetAllAsync()));
         }
 
         // GET: api/TournamentDetails/5
         [HttpGet("{id}")]
         public async Task<ActionResult<TournamentIdDto>> GetTournamentDetails(int id, bool? includeGames)
         {
-            var tournamentDetails = await iUoW.TournamentRepository.GetAsync(id, includeGames != null ? includeGames.Value : false);
+            var tournamentDetails = await Services.TournamentRepository.GetAsync(id, includeGames != null ? includeGames.Value : false);
 
             if (tournamentDetails == null)
             {
@@ -60,7 +58,7 @@ namespace Tournament.API.Controllers
             }
 
 
-            TournamentDetails toAdd = await iUoW.TournamentRepository.GetAsync(id);
+            TournamentDetails toAdd = await Services.TournamentRepository.GetAsync(id);
 
             if (toAdd == default)
                 return NotFound("Requested object does not exist");
@@ -74,20 +72,20 @@ namespace Tournament.API.Controllers
 
             try
             {
-                iUoW.TournamentRepository.Update(toAdd);
-                await iUoW.CompleteAsync();
+                Services.TournamentRepository.Update(toAdd);
+                await Services.CompleteAsync();
             }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await iUoW.TournamentRepository.AnyAsync(id))
-                {
-                    return StatusCode(500); 
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            //catch (DbUpdateConcurrencyException)
+            //{
+            //    if (!await iUoW.TournamentRepository.AnyAsync(id))
+            //    {
+            //        return StatusCode(500); 
+            //    }
+            //    else
+            //    {
+            //        throw;
+            //    }
+            //}
 
             return NoContent();
         }
@@ -98,7 +96,7 @@ namespace Tournament.API.Controllers
             if(patchDocument == null)
                 return BadRequest("Patch document cannot be null or empty");
 
-            TournamentDetails tourDets = await iUoW.TournamentRepository.GetAsync(id);
+            TournamentDetails tourDets = await Services.TournamentRepository.GetAsync(id);
 
             if(tourDets == default)
                 return NotFound("Requested object does not exist.");
@@ -113,8 +111,8 @@ namespace Tournament.API.Controllers
             if (!TryValidateModel(tourDets))
                 BadRequest("Invalid patch attempt.");
 
-            iUoW.TournamentRepository.Update(tourDets);
-            await iUoW.CompleteAsync();
+            Services.TournamentRepository.Update(tourDets);
+            await Services.CompleteAsync();
             
             return NoContent();
         }
@@ -134,8 +132,8 @@ namespace Tournament.API.Controllers
                 BadRequest();
 
 
-            iUoW.TournamentRepository.Add(postTour);
-            await iUoW.CompleteAsync();
+            Services.TournamentRepository.Add(postTour);
+            await Services.CompleteAsync();
 
             return CreatedAtAction("GetTournamentDetails", new { id = postTour.Id }, tournamentDetails);
         }
@@ -144,14 +142,14 @@ namespace Tournament.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTournamentDetails(int id)
         {
-            var tournamentDetails = await iUoW.TournamentRepository.GetAsync(id);
+            var tournamentDetails = await Services.TournamentRepository.GetAsync(id);
             if (tournamentDetails == null)
             {
                 return NotFound();
             }
 
-            iUoW.TournamentRepository.Remove(tournamentDetails);
-            await iUoW.CompleteAsync();
+            Services.TournamentRepository.Remove(tournamentDetails);
+            await Services.CompleteAsync();
 
             return NoContent();
         }

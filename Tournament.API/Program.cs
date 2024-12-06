@@ -4,6 +4,8 @@ using Tournament.API.Extensions;
 using Tournament.Data.Data;
 using Tournament.Data.Repositories;
 using Tournament.Core.Repositories;
+using Tournament.Services.Services;
+using Service.Contracts.Services;
 
 namespace Tournament.API
 {
@@ -22,6 +24,7 @@ namespace Tournament.API
                    .AddXmlDataContractSerializerFormatters();
 
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddScoped<IServiceManager, ServiceManager>();
 
             builder.Services.AddAutoMapper(typeof(TournamentMappings));
 
