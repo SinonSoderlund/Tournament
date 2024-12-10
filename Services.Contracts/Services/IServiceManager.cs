@@ -8,7 +8,7 @@ namespace Service.Contracts.Services
 {
     public interface IServiceManager
     {
-        public ITournamentService TournamnetService { get; }
+        public ITournamentService TournamentService { get; }
         public IGameService GameService { get; }
 
     }

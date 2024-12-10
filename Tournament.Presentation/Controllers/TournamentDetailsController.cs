@@ -1,50 +1,55 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Tournament.Data.Data;
-using Tournament.Core.Entities;
-using Tournament.Core.Repositories;
+﻿using Microsoft.AspNetCore.Mvc;
 using Tournament.Core.Dto;
-using AutoMapper;
-using Bogus.DataSets;
 using Microsoft.AspNetCore.JsonPatch;
+using Service.Contracts.RequestObjects.Enums;
+using Service.Contracts.Services;
+using Service.Contracts.RequestObjects.ErrorSystem;
+using Service.Contracts.RequestObjects.Concrete.Requests;
+using Service.Contracts.RequestObjects.Concrete.Types;
+using Service.Contracts.RequestObjects.ConcreteType.Types;
+using Service.Contracts.RequestObjects.Interfaces.Types;
+using System.Xml.Linq;
+using Tournament.Core.Entities;
 
 namespace Tournament.API.Controllers
 {
+    using PatchRequest = RequestWithValidationAndQueryInfo<JsonPatchDocument<TournamentIdDto>, IDataValidator<Func<object, bool>>, QueryInfoTournament>;
+    using UpdateRequest = RequestWithValidation<TournamentUpdateDto, IDataValidator<Func<object, bool>>>;
+    using PostRequest = RequestWithValidation<TournamentCreateDto, IDataValidator<Func<object, bool>>>;
+
     [Route("api/[controller]")]
     [ApiController]
-    public class TournamentDetailsController : ControllerBase
+    public class TournamentDetailsController : ControllerBase, IAPIErrorSystem
     {
-        private readonly IUnitOfWork Services;
-
-        public TournamentDetailsController(IUnitOfWork iServices)
+        private readonly IServiceManager Services;
+        private ErrorInstance currentError;
+        public TournamentDetailsController(IServiceManager iServices)
         {
-            this.Services = iUoW;
+            this.Services = iServices;
+            currentError = null!;
         }
 
         // GET: api/TournamentDetails
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TournamentIdDto>>> GetTournamentDetails()
         {
-            return Ok(mapper.Map<IEnumerable<TournamentIdDto>>(await Services.TournamentRepository.GetAllAsync()));
+            var request = await Services.TournamentService.GetAllAsync(new Request<IEnumerable<TournamentIdDto>>(this));
+            return Ok(request.Data);
         }
 
         // GET: api/TournamentDetails/5
         [HttpGet("{id}")]
         public async Task<ActionResult<TournamentIdDto>> GetTournamentDetails(int id, bool? includeGames)
         {
-            var tournamentDetails = await Services.TournamentRepository.GetAsync(id, includeGames != null ? includeGames.Value : false);
+            var request = await Services.TournamentService.GetAsync(new RequestWithQueryInfo<TournamentIdDto, QueryInfoTournament>(this, new(id, includeGames)));
+            var tour = request.Data;
 
-            if (tournamentDetails == null)
+            if (tour == default)
             {
                 return NotFound("Element does not exist");
             }
 
-            return Ok(mapper.Map<TournamentIdDto>(tournamentDetails));
+            return Ok(tour);
         }
 
         // PUT: api/TournamentDetails/5
@@ -56,64 +61,37 @@ namespace Tournament.API.Controllers
             {
                 return BadRequest("Target Url Id does not match inserted object");
             }
-
-
-            TournamentDetails toAdd = await Services.TournamentRepository.GetAsync(id);
-
-            if (toAdd == default)
-                return NotFound("Requested object does not exist");
-
-            mapper.Map(tournamentDetails, toAdd);
-
-            TryValidateModel(toAdd);
-            if (!ModelState.IsValid)
-                BadRequest();
-
-
-            try
+            await Services.TournamentService.UpdateAsync(new UpdateRequest(this, new DataValidator(TryValidateModel), tournamentDetails));
+            if (currentError != null)
             {
-                Services.TournamentRepository.Update(toAdd);
-                await Services.CompleteAsync();
+                if (currentError.ErrorCode == EErrorCodes.BadRequest)
+                {
+                    TryValidateModel(tournamentDetails);
+                    if (!ModelState.IsValid)
+                        return BadRequest(ModelState);
+                }
+                return GenericErrors();
             }
-            //catch (DbUpdateConcurrencyException)
-            //{
-            //    if (!await iUoW.TournamentRepository.AnyAsync(id))
-            //    {
-            //        return StatusCode(500); 
-            //    }
-            //    else
-            //    {
-            //        throw;
-            //    }
-            //}
-
             return NoContent();
         }
 
         [HttpPatch("{id}")]
         public async Task<ActionResult> PatchTournamentDetails(int id, JsonPatchDocument<TournamentIdDto> patchDocument)
         {
-            if(patchDocument == null)
+            if (patchDocument == null)
                 return BadRequest("Patch document cannot be null or empty");
+            await Services.TournamentService.PatchAsync(new PatchRequest(this, new DataValidator(TryValidateModel), new QueryInfoTournament(id, null), patchDocument));
+            if (currentError != null)
+            {
+                if (currentError.ErrorCode == EErrorCodes.BadRequest || currentError.ErrorCode == EErrorCodes.UnprocessableEntity)
+                {
+                    TryValidateModel(patchDocument);
+                    if (!ModelState.IsValid)
+                        return BadRequest(ModelState);
+                }
+                return GenericErrors();
+            }
 
-            TournamentDetails tourDets = await Services.TournamentRepository.GetAsync(id);
-
-            if(tourDets == default)
-                return NotFound("Requested object does not exist.");
-
-            TournamentIdDto dto = mapper.Map<TournamentIdDto>(tourDets);
-
-            patchDocument.ApplyTo(dto, ModelState);
-            if(!ModelState.IsValid) 
-                UnprocessableEntity(ModelState);
-
-            mapper.Map(dto, tourDets);
-            if (!TryValidateModel(tourDets))
-                BadRequest("Invalid patch attempt.");
-
-            Services.TournamentRepository.Update(tourDets);
-            await Services.CompleteAsync();
-            
             return NoContent();
         }
 
@@ -123,35 +101,53 @@ namespace Tournament.API.Controllers
         [HttpPost]
         public async Task<ActionResult<TournamentDto>> PostTournamentDetails(TournamentCreateDto tournamentDetails)
         {
-            TournamentDetails postTour = new();
-
-            mapper.Map(tournamentDetails, postTour);
-
-            TryValidateModel(postTour);
-            if (!ModelState.IsValid)
-                BadRequest();
-
-
-            Services.TournamentRepository.Add(postTour);
-            await Services.CompleteAsync();
-
-            return CreatedAtAction("GetTournamentDetails", new { id = postTour.Id }, tournamentDetails);
+            await Services.TournamentService.CreateAsync(new PostRequest(this, new DataValidator(TryValidateModel), tournamentDetails));
+            if (currentError != null)
+            {
+                if (currentError.ErrorCode == EErrorCodes.BadRequest)
+                {
+                    TryValidateModel(tournamentDetails);
+                    if (!ModelState.IsValid)
+                        return BadRequest(ModelState);
+                }
+                return GenericErrors();
+            }
+            //Todo: fix id fetch?
+            return CreatedAtAction("GetGame", -1, tournamentDetails);
         }
 
         // DELETE: api/TournamentDetails/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTournamentDetails(int id)
         {
-            var tournamentDetails = await Services.TournamentRepository.GetAsync(id);
-            if (tournamentDetails == null)
+            await Services.TournamentService.DeleteAsync(new Request<TournamentIdDto>(this, new TournamentIdDto { Id = id }));
+            if (currentError != null)
             {
-                return NotFound();
+                return GenericErrors();
             }
-
-            Services.TournamentRepository.Remove(tournamentDetails);
-            await Services.CompleteAsync();
-
             return NoContent();
+        }
+
+        public void RegisterError(ErrorInstance Error)
+        {
+            currentError = Error;
+        }
+
+        public ActionResult GenericErrors()
+        {
+            switch (currentError.ErrorCode)
+            {
+                case EErrorCodes.BadRequest:
+                    return BadRequest(currentError.ErrorMessage);
+                case EErrorCodes.NotFound:
+                    return NotFound(currentError.ErrorMessage);
+                case EErrorCodes.ISR500:
+                    return StatusCode(500);
+                case EErrorCodes.UnprocessableEntity:
+                    return UnprocessableEntity(currentError.ErrorMessage);
+                default:
+                    throw new NotImplementedException();
+            }
         }
     }
 }

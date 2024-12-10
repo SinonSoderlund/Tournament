@@ -1,4 +1,4 @@
-﻿using Service.Contracts.ResultsObjects.Enums;
+﻿using Service.Contracts.RequestObjects.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;

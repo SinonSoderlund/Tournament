@@ -2,11 +2,13 @@
 using Service.Contracts.Services;
 using Tournament.Core.Dto;
 using Tournament.Core.Repositories;
-using Service.Contracts.RequestObjects.GameRequests;
 using Tournament.Core.Entities;
 using Service.Contracts.RequestObjects.ErrorSystem;
 using Service.Contracts.RequestObjects.Enums;
 using Microsoft.AspNetCore.JsonPatch;
+using Service.Contracts.RequestObjects.Interfaces.Requests;
+using Service.Contracts.RequestObjects.Interfaces.Types;
+using Service.Contracts.RequestObjects.ConcreteType.Types;
 
 
 namespace Tournament.Services.Services
@@ -23,11 +25,11 @@ namespace Tournament.Services.Services
         }
 
 
-        public async Task CreateAsync(GameCreateRequest createRequest)
+        public async Task CreateAsync(IRequestWithValidation<GameCreateDto, IDataValidator<Func<object, bool>>> createRequest)
         {
             TournamentDetails parent;
 
-            var game = createRequest.GamecreateDto;
+            var game = createRequest.Data;
 
             parent = await UoW.TournamentRepository.GetAsync(game.TournamentId);
 
@@ -42,7 +44,7 @@ namespace Tournament.Services.Services
             mapper.Map(game, postGame);
             postGame.Tournament = parent;
 
-            
+
             if (!createRequest.InvokeValidate(postGame))
             {
                 createRequest.CallError(new ErrorInstance(EErrorCodes.BadRequest, "Something is wrong with the model."));
@@ -53,9 +55,9 @@ namespace Tournament.Services.Services
             await UoW.CompleteAsync();
         }
 
-        public async Task DeleteAsync(GameDeleteRequest deleteRequest)
+        public async Task DeleteAsync(IRequest<GameIdDto> deleteRequest)
         {
-            var game = await UoW.GameRepository.GetAsync(deleteRequest.Id);
+            var game = await UoW.GameRepository.GetAsync(deleteRequest.Data.Id);
             if (game == default)
             {
                 deleteRequest.CallError(new ErrorInstance(EErrorCodes.NotFound, "Requested object does not exist."));
@@ -66,56 +68,52 @@ namespace Tournament.Services.Services
             await UoW.CompleteAsync();
         }
 
-        public async Task<IEnumerableGameIdDtoRequest> GetAllAsync(IEnumerableGameIdDtoRequest dtoRequest)
+        public async Task<IRequest<IEnumerable<GameIdDto>>> GetAllAsync(IRequest<IEnumerable<GameIdDto>> dtoRequest)
         {
-            dtoRequest.GameIdDtos = mapper.Map<IEnumerable<GameIdDto>>(await UoW.GameRepository.GetAllAsync());
+            dtoRequest.Data = mapper.Map<IEnumerable<GameIdDto>>(await UoW.GameRepository.GetAllAsync());
             return dtoRequest;
         }
 
-        public async Task<GameIdDtoRequest> GetAsync(GameIdDtoRequest dtoRequest)
+        public async Task<IRequestWithQueryInfo<GameIdDto, QueryInfoGame>> GetAsync(IRequestWithQueryInfo<GameIdDto, QueryInfoGame> dtoRequest)
         {
-            dtoRequest.GameIdDto = mapper.Map<GameIdDto>(await UoW.GameRepository.GetAsync(dtoRequest.Id, dtoRequest.Name));
+            dtoRequest.Data = mapper.Map<GameIdDto>(await UoW.GameRepository.GetAsync(dtoRequest.GetQueryInfo().Id, dtoRequest.GetQueryInfo().Name));
             return dtoRequest;
         }
 
-        public async Task PatchAsync(GamePatchRequest patchRequest)
+        public async Task PatchAsync(IRequestWithValidationAndQueryInfo<JsonPatchDocument<GameIdDto>, IDataValidator<Func<object, bool>>, QueryInfoGame> patchRequest)
         {
-            if (patchRequest.PatchDocument is JsonPatchDocument<GameIdDto> patch)
+
+            Game game = await UoW.GameRepository.GetAsync(patchRequest.GetQueryInfo().Id);
+
+            if (game == default)
             {
-                Game game = await UoW.GameRepository.GetAsync(patchRequest.Id);
-
-                if (game == default)
-                {
-                    patchRequest.CallError(new ErrorInstance(EErrorCodes.NotFound, "Requested object does not exist."));
-                    return;
-                }
-
-                GameIdDto dto = mapper.Map<GameIdDto>(game);
-
-                
-                if (!patchRequest.InvokeValidate(dto))
-                {
-                    patchRequest.CallError(new ErrorInstance(EErrorCodes.UnprocessableEntity, "Something is wrong with the model."));
-                    return;
-                }
-
-                mapper.Map(dto, game);
-                if (!patchRequest.InvokeValidate(game))
-                {
-                    patchRequest.CallError(new ErrorInstance(EErrorCodes.BadRequest, "Something is wrong with the model."));
-                    return;
-                }
-
-                UoW.GameRepository.Update(game);
-                await UoW.CompleteAsync();
+                patchRequest.CallError(new ErrorInstance(EErrorCodes.NotFound, "Requested object does not exist."));
+                return;
             }
-            else
-                throw new ArgumentException();
+
+            GameIdDto dto = mapper.Map<GameIdDto>(game);
+
+
+            if (!patchRequest.InvokeValidate(dto))
+            {
+                patchRequest.CallError(new ErrorInstance(EErrorCodes.UnprocessableEntity, "Something is wrong with the model."));
+                return;
+            }
+
+            mapper.Map(dto, game);
+            if (!patchRequest.InvokeValidate(game))
+            {
+                patchRequest.CallError(new ErrorInstance(EErrorCodes.BadRequest, "Something is wrong with the model."));
+                return;
+            }
+
+            UoW.GameRepository.Update(game);
+            await UoW.CompleteAsync();
         }
 
-        public async Task UpdateAsync(GameUpdateRequest updateRequest)
+        public async Task UpdateAsync(IRequestWithValidation<GameUpdateDto, IDataValidator<Func<object, bool>>> updateRequest)
         {
-            var game = updateRequest.GameUpdateDto;
+            var game = updateRequest.Data;
             Game upd = await UoW.GameRepository.GetAsync(game.Id);
 
             if (upd == default)
@@ -168,5 +166,6 @@ namespace Tournament.Services.Services
                 }
             }
         }
+
     }
 }

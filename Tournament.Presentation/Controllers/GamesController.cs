@@ -4,10 +4,17 @@ using Microsoft.AspNetCore.JsonPatch;
 using Service.Contracts.RequestObjects.Enums;
 using Service.Contracts.Services;
 using Service.Contracts.RequestObjects.ErrorSystem;
-using Service.Contracts.RequestObjects.GameRequests;
+using Service.Contracts.RequestObjects.Concrete.Requests;
+using Service.Contracts.RequestObjects.Concrete.Types;
+using Service.Contracts.RequestObjects.ConcreteType.Types;
+using Service.Contracts.RequestObjects.Interfaces.Types;
 
 namespace Tournament.API.Controllers
 {
+    using PatchRequest = RequestWithValidationAndQueryInfo<JsonPatchDocument<GameIdDto>, IDataValidator<Func<object, bool>>, QueryInfoGame>;
+    using UpdateRequest = RequestWithValidation<GameUpdateDto, IDataValidator<Func<object, bool>>>;
+    using PostRequest = RequestWithValidation<GameCreateDto, IDataValidator<Func<object, bool>>>;
+
     [Route("api/[controller]")]
     [ApiController]
     public class GamesController : ControllerBase, IAPIErrorSystem
@@ -18,24 +25,23 @@ namespace Tournament.API.Controllers
         public GamesController(IServiceManager iService)
         {
             this.Services = iService;
+            currentError = null!;
         }
 
         // GET: api/Games
         [HttpGet]
         public async Task<ActionResult<IEnumerable<GameIdDto>>> GetGame()
         {
-            IEnumerableGameIdDtoRequest request = new(this);
-            request = await Services.GameService.GetAllAsync(request);
-            return Ok(request.GameIdDtos);
+            var request = await Services.GameService.GetAllAsync(new Request<IEnumerable<GameIdDto>>(this));
+            return Ok(request.Data);
         }
 
         // GET: api/Games/5
         [HttpGet("{id}")]
         public async Task<ActionResult<GameIdDto>> GetGame(int id, string? byName)
         {
-            GameIdDtoRequest request = new(this, id, byName);
-            request = await Services.GameService.GetAsync(request);
-            var game = request.GameIdDto;
+            var request = await Services.GameService.GetAsync(new RequestWithQueryInfo<GameIdDto, QueryInfoGame>(this, new(id, byName)));
+            var game = request.Data;
 
             if (game == default)
             {
@@ -54,7 +60,7 @@ namespace Tournament.API.Controllers
             {
                 return BadRequest("Target Url Id does not match inserted object");
             }
-            await Services.GameService.UpdateAsync(new GameUpdateRequest(this, TryValidateModel, game));
+            await Services.GameService.UpdateAsync(new UpdateRequest(this, new DataValidator(TryValidateModel), game));
             if (currentError != null)
             {
                 if (currentError.ErrorCode == EErrorCodes.BadRequest)
@@ -73,7 +79,7 @@ namespace Tournament.API.Controllers
         {
             if (patchDocument == null)
                 return BadRequest("Patch document cannot be null or empty");
-            await Services.GameService.PatchAsync(new GamePatchRequest(this, TryValidateModel, patchDocument, id));
+            await Services.GameService.PatchAsync(new PatchRequest(this, new DataValidator(TryValidateModel), new QueryInfoGame(id, null), patchDocument));
             if (currentError != null)
             {
                 if (currentError.ErrorCode == EErrorCodes.BadRequest || currentError.ErrorCode == EErrorCodes.UnprocessableEntity)
@@ -94,7 +100,7 @@ namespace Tournament.API.Controllers
         [HttpPost]
         public async Task<ActionResult<GameDto>> PostGame(GameCreateDto game)
         {
-            await Services.GameService.CreateAsync(new GameCreateRequest(this, TryValidateModel, game));
+            await Services.GameService.CreateAsync(new PostRequest(this, new DataValidator(TryValidateModel), game));
             if (currentError != null)
             {
                 if (currentError.ErrorCode == EErrorCodes.BadRequest)
@@ -113,7 +119,7 @@ namespace Tournament.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteGame(int id)
         {
-            await Services.GameService.DeleteAsync(new GameDeleteRequest(this, id));
+            await Services.GameService.DeleteAsync(new Request<GameIdDto>(this, new GameIdDto { Id = id }));
             if (currentError != null)
             {
                 return GenericErrors();

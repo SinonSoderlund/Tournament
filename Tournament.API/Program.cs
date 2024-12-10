@@ -24,7 +24,10 @@ namespace Tournament.API
                    .AddXmlDataContractSerializerFormatters();
 
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddScoped<ITournamentService, TournamentService>();
+            builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IServiceManager, ServiceManager>();
+
 
             builder.Services.AddAutoMapper(typeof(TournamentMappings));
 
