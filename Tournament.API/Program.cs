@@ -6,6 +6,7 @@ using Tournament.Data.Repositories;
 using Tournament.Core.Repositories;
 using Tournament.Services.Services;
 using Service.Contracts.Services;
+using Tournament.Presentation.Controllers;
 
 namespace Tournament.API
 {
@@ -21,7 +22,8 @@ namespace Tournament.API
 
             builder.Services.AddControllers(opt => opt.ReturnHttpNotAcceptable = true)
                    .AddNewtonsoftJson()
-                   .AddXmlDataContractSerializerFormatters();
+                   .AddXmlDataContractSerializerFormatters()
+                   .AddApplicationPart(typeof(GamesController).Assembly);
 
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<ITournamentService, TournamentService>();

@@ -9,10 +9,13 @@ using Microsoft.AspNetCore.JsonPatch;
 using Service.Contracts.RequestObjects.Interfaces.Requests;
 using Service.Contracts.RequestObjects.Interfaces.Types;
 using Service.Contracts.RequestObjects.ConcreteType.Types;
+using Service.Contracts.RequestObjects.Concrete.Requests;
 
 
 namespace Tournament.Services.Services
 {
+    using IDataValiation = IDataValidator<Func<object, bool>>;
+
     public class GameService : IGameService
     {
         private readonly IUnitOfWork UoW;
@@ -25,7 +28,7 @@ namespace Tournament.Services.Services
         }
 
 
-        public async Task CreateAsync(IRequestWithValidation<GameCreateDto, IDataValidator<Func<object, bool>>> createRequest)
+        public async Task<IRequest<GameIdDto>> CreateAsync(IRequestWithValidation<GameCreateDto, IDataValiation> createRequest)
         {
             TournamentDetails parent;
 
@@ -36,7 +39,7 @@ namespace Tournament.Services.Services
             if (parent == default)
             {
                 createRequest.CallError(new ErrorInstance(EErrorCodes.NotFound, "Requested parent object does not exist."));
-                return;
+                return null!;
             }
 
             Game postGame = new();
@@ -48,11 +51,13 @@ namespace Tournament.Services.Services
             if (!createRequest.InvokeValidate(postGame))
             {
                 createRequest.CallError(new ErrorInstance(EErrorCodes.BadRequest, "Something is wrong with the model."));
-                return;
+                return null!;
             }
 
             UoW.GameRepository.Add(postGame);
             await UoW.CompleteAsync();
+            GameIdDto idDto = mapper.Map<GameIdDto>(postGame);
+            return new Request<GameIdDto>(idDto);
         }
 
         public async Task DeleteAsync(IRequest<GameIdDto> deleteRequest)
@@ -80,7 +85,7 @@ namespace Tournament.Services.Services
             return dtoRequest;
         }
 
-        public async Task PatchAsync(IRequestWithValidationAndQueryInfo<JsonPatchDocument<GameIdDto>, IDataValidator<Func<object, bool>>, QueryInfoGame> patchRequest)
+        public async Task PatchAsync(IRequestWithValidationAndQueryInfo<JsonPatchDocument<GameIdDto>, IDataValiation, QueryInfoGame> patchRequest)
         {
 
             Game game = await UoW.GameRepository.GetAsync(patchRequest.GetQueryInfo().Id);
@@ -92,6 +97,7 @@ namespace Tournament.Services.Services
             }
 
             GameIdDto dto = mapper.Map<GameIdDto>(game);
+            patchRequest.Data.ApplyTo(dto);
 
 
             if (!patchRequest.InvokeValidate(dto))
@@ -111,7 +117,7 @@ namespace Tournament.Services.Services
             await UoW.CompleteAsync();
         }
 
-        public async Task UpdateAsync(IRequestWithValidation<GameUpdateDto, IDataValidator<Func<object, bool>>> updateRequest)
+        public async Task UpdateAsync(IRequestWithValidation<GameUpdateDto, IDataValiation> updateRequest)
         {
             var game = updateRequest.Data;
             Game upd = await UoW.GameRepository.GetAsync(game.Id);

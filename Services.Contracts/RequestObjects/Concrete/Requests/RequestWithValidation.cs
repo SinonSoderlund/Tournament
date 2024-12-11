@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Tournament.Core.Dto;
 
 namespace Service.Contracts.RequestObjects.Concrete.Requests
 {

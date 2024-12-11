@@ -1,5 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.AspNetCore.Mvc;
+using Service.Contracts.RequestObjects.Concrete.Requests;
 using Service.Contracts.RequestObjects.Concrete.Types;
 using Service.Contracts.RequestObjects.Enums;
 using Service.Contracts.RequestObjects.ErrorSystem;
@@ -12,6 +14,7 @@ using Tournament.Core.Repositories;
 
 namespace Tournament.Services.Services
 {
+    using IDataValiation = IDataValidator<Func<object, bool>>;
     public class TournamentService : ITournamentService
     {
 
@@ -24,7 +27,7 @@ namespace Tournament.Services.Services
             this.mapper = mapper;
         }
 
-        public async Task CreateAsync(IRequestWithValidation<TournamentCreateDto, IDataValidator<Func<object, bool>>> createRequest)
+        public async Task<IRequest<TournamentIdDto>> CreateAsync(IRequestWithValidation<TournamentCreateDto, IDataValiation> createRequest)
         {
             var tour = createRequest.Data;
 
@@ -35,11 +38,13 @@ namespace Tournament.Services.Services
             if (!createRequest.InvokeValidate(deets))
             {
                 createRequest.CallError(new ErrorInstance(EErrorCodes.BadRequest, "Something is wrong with the model."));
-                return;
+                return null!;
             }
 
             UoW.TournamentRepository.Add(deets);
             await UoW.CompleteAsync();
+            TournamentIdDto idDto = mapper.Map<TournamentIdDto>(deets);
+            return new Request<TournamentIdDto>(idDto);
         }
 
         public async Task DeleteAsync(IRequest<TournamentIdDto> deleteRequest)
@@ -68,7 +73,7 @@ namespace Tournament.Services.Services
             return dtoRequest;
         }
 
-        public async Task PatchAsync(IRequestWithValidationAndQueryInfo<JsonPatchDocument<TournamentIdDto>, IDataValidator<Func<object, bool>>, QueryInfoTournament> patchRequest)
+        public async Task PatchAsync(IRequestWithValidationAndQueryInfo<JsonPatchDocument<TournamentIdDto>, IDataValiation, QueryInfoTournament> patchRequest)
         {
 
             TournamentDetails tour = await UoW.TournamentRepository.GetAsync(patchRequest.GetQueryInfo().Id);
@@ -80,7 +85,7 @@ namespace Tournament.Services.Services
             }
 
             TournamentIdDto dto = mapper.Map<TournamentIdDto>(tour);
-
+            patchRequest.Data.ApplyTo(dto);
 
             if (!patchRequest.InvokeValidate(dto))
             {
@@ -99,7 +104,7 @@ namespace Tournament.Services.Services
             await UoW.CompleteAsync();
         }
 
-        public async Task UpdateAsync(IRequestWithValidation<TournamentUpdateDto, IDataValidator<Func<object, bool>>> updateRequest)
+        public async Task UpdateAsync(IRequestWithValidation<TournamentUpdateDto, IDataValiation> updateRequest)
         {
             var tour = updateRequest.Data;
             TournamentDetails upd = await UoW.TournamentRepository.GetAsync(tour.Id);

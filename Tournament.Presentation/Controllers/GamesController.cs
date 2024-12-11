@@ -9,7 +9,7 @@ using Service.Contracts.RequestObjects.Concrete.Types;
 using Service.Contracts.RequestObjects.ConcreteType.Types;
 using Service.Contracts.RequestObjects.Interfaces.Types;
 
-namespace Tournament.API.Controllers
+namespace Tournament.Presentation.Controllers
 {
     using PatchRequest = RequestWithValidationAndQueryInfo<JsonPatchDocument<GameIdDto>, IDataValidator<Func<object, bool>>, QueryInfoGame>;
     using UpdateRequest = RequestWithValidation<GameUpdateDto, IDataValidator<Func<object, bool>>>;
@@ -24,7 +24,7 @@ namespace Tournament.API.Controllers
 
         public GamesController(IServiceManager iService)
         {
-            this.Services = iService;
+            Services = iService;
             currentError = null!;
         }
 
@@ -100,7 +100,7 @@ namespace Tournament.API.Controllers
         [HttpPost]
         public async Task<ActionResult<GameDto>> PostGame(GameCreateDto game)
         {
-            await Services.GameService.CreateAsync(new PostRequest(this, new DataValidator(TryValidateModel), game));
+            var outp = await Services.GameService.CreateAsync(new PostRequest(this, new DataValidator(TryValidateModel), game));
             if (currentError != null)
             {
                 if (currentError.ErrorCode == EErrorCodes.BadRequest)
@@ -112,7 +112,7 @@ namespace Tournament.API.Controllers
                 return GenericErrors();
             }
             //Todo: fix id fetch?
-            return CreatedAtAction("GetGame", -1, game);
+            return CreatedAtAction("GetGame", new { id = outp.Data.Id }, game);
         }
 
         // DELETE: api/Games/5
@@ -125,16 +125,16 @@ namespace Tournament.API.Controllers
                 return GenericErrors();
             }
             return NoContent();
-        
+
         }
 
-
+        [NonAction]
         public void RegisterError(ErrorInstance Error)
         {
             currentError = Error;
         }
 
-        public ActionResult GenericErrors()
+        private ActionResult GenericErrors()
         {
             switch (currentError.ErrorCode)
             {

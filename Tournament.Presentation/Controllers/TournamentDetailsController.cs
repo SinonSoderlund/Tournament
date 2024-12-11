@@ -11,7 +11,7 @@ using Service.Contracts.RequestObjects.Interfaces.Types;
 using System.Xml.Linq;
 using Tournament.Core.Entities;
 
-namespace Tournament.API.Controllers
+namespace Tournament.Presentation.Controllers
 {
     using PatchRequest = RequestWithValidationAndQueryInfo<JsonPatchDocument<TournamentIdDto>, IDataValidator<Func<object, bool>>, QueryInfoTournament>;
     using UpdateRequest = RequestWithValidation<TournamentUpdateDto, IDataValidator<Func<object, bool>>>;
@@ -25,7 +25,7 @@ namespace Tournament.API.Controllers
         private ErrorInstance currentError;
         public TournamentDetailsController(IServiceManager iServices)
         {
-            this.Services = iServices;
+            Services = iServices;
             currentError = null!;
         }
 
@@ -99,9 +99,9 @@ namespace Tournament.API.Controllers
         // POST: api/TournamentDetails
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<TournamentDto>> PostTournamentDetails(TournamentCreateDto tournamentDetails)
+        public async Task<ActionResult<TournamentIdDto>> PostTournamentDetails(TournamentCreateDto tournamentDetails)
         {
-            await Services.TournamentService.CreateAsync(new PostRequest(this, new DataValidator(TryValidateModel), tournamentDetails));
+            var outp = await Services.TournamentService.CreateAsync(new PostRequest(this, new DataValidator(TryValidateModel), tournamentDetails));
             if (currentError != null)
             {
                 if (currentError.ErrorCode == EErrorCodes.BadRequest)
@@ -113,7 +113,7 @@ namespace Tournament.API.Controllers
                 return GenericErrors();
             }
             //Todo: fix id fetch?
-            return CreatedAtAction("GetGame", -1, tournamentDetails);
+            return CreatedAtAction("GetTournamentDetails", new { id = outp.Data.Id}, tournamentDetails);
         }
 
         // DELETE: api/TournamentDetails/5
@@ -128,12 +128,13 @@ namespace Tournament.API.Controllers
             return NoContent();
         }
 
+        [NonAction]
         public void RegisterError(ErrorInstance Error)
         {
             currentError = Error;
         }
 
-        public ActionResult GenericErrors()
+        private ActionResult GenericErrors()
         {
             switch (currentError.ErrorCode)
             {
