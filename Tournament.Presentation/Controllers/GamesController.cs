@@ -112,7 +112,7 @@ namespace Tournament.Presentation.Controllers
                 return GenericErrors();
             }
             //Todo: fix id fetch?
-            return CreatedAtAction("GetGame", new { id = outp.Data.Id }, game);
+            return CreatedAtAction("GetGame", new { id = outp.Id }, game);
         }
 
         // DELETE: api/Games/5

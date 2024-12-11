@@ -12,7 +12,7 @@ namespace Service.Contracts.Services
     {
         Task<IRequest<IEnumerable<GameIdDto>>> GetAllAsync(IRequest<IEnumerable<GameIdDto>> dtoRequest);
         Task<IRequestWithQueryInfo<GameIdDto, QueryInfoGame>> GetAsync(IRequestWithQueryInfo<GameIdDto, QueryInfoGame>  dtoRequest);
-        Task<IRequest<GameIdDto>> CreateAsync(IRequestWithValidation<GameCreateDto, IDataValiation> createRequest);
+        Task<GameIdDto> CreateAsync(IRequestWithValidation<GameCreateDto, IDataValiation> createRequest);
         Task UpdateAsync(IRequestWithValidation<GameUpdateDto, IDataValiation> updateRequest);
         Task PatchAsync(IRequestWithValidationAndQueryInfo<JsonPatchDocument<GameIdDto>, IDataValiation, QueryInfoGame> patchRequest);
         Task DeleteAsync(IRequest<GameIdDto> deleteRequest);

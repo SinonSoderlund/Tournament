@@ -28,7 +28,7 @@ namespace Tournament.Services.Services
         }
 
 
-        public async Task<IRequest<GameIdDto>> CreateAsync(IRequestWithValidation<GameCreateDto, IDataValiation> createRequest)
+        public async Task<GameIdDto> CreateAsync(IRequestWithValidation<GameCreateDto, IDataValiation> createRequest)
         {
             TournamentDetails parent;
 
@@ -57,7 +57,7 @@ namespace Tournament.Services.Services
             UoW.GameRepository.Add(postGame);
             await UoW.CompleteAsync();
             GameIdDto idDto = mapper.Map<GameIdDto>(postGame);
-            return new Request<GameIdDto>(idDto);
+            return idDto;
         }
 
         public async Task DeleteAsync(IRequest<GameIdDto> deleteRequest)

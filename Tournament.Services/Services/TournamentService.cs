@@ -27,7 +27,7 @@ namespace Tournament.Services.Services
             this.mapper = mapper;
         }
 
-        public async Task<IRequest<TournamentIdDto>> CreateAsync(IRequestWithValidation<TournamentCreateDto, IDataValiation> createRequest)
+        public async Task<TournamentIdDto> CreateAsync(IRequestWithValidation<TournamentCreateDto, IDataValiation> createRequest)
         {
             var tour = createRequest.Data;
 
@@ -44,7 +44,7 @@ namespace Tournament.Services.Services
             UoW.TournamentRepository.Add(deets);
             await UoW.CompleteAsync();
             TournamentIdDto idDto = mapper.Map<TournamentIdDto>(deets);
-            return new Request<TournamentIdDto>(idDto);
+            return idDto;
         }
 
         public async Task DeleteAsync(IRequest<TournamentIdDto> deleteRequest)

@@ -20,13 +20,6 @@ namespace Service.Contracts.RequestObjects.Concrete.Requests
             ErrorConnection = errorConnection;
             Data = data;
         }
-
-        public Request(T1 data) 
-        {
-            ErrorConnection = null!;
-            Data = data;
-        }
-
         public void CallError(ErrorInstance error)
         {
             ErrorConnection.RegisterError(error);
